@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "../services/api";
+import { isValidEmail, isValidPassword, validationMessages } from "../utils/validation";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -11,30 +12,21 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const validatePassword = (password) => {
-    return password.length >= 6;
-  };
-
   const validateForm = () => {
     const newErrors = {};
     
     // Email validation
     if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      newErrors.email = validationMessages.email.required;
+    } else if (!isValidEmail(formData.email)) {
+      newErrors.email = validationMessages.email.invalid;
     }
 
     // Password validation
     if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (!validatePassword(formData.password)) {
-      newErrors.password = "Password must be at least 6 characters long";
+      newErrors.password = validationMessages.password.required;
+    } else if (!isValidPassword(formData.password)) {
+      newErrors.password = validationMessages.password.invalid;
     }
 
     setErrors(newErrors);
@@ -58,30 +50,15 @@ const LoginPage = () => {
     }
 
     setLoading(true);
-
     try {
       const response = await authService.login(formData);
-      console.log('Login response:', response); // Debug log
-      
-      if (response.token) {
-        // Store the token and user data
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('userData', JSON.stringify(response.user));
-        localStorage.setItem('userType', response.user.role || 'user'); // Store user type
-        
-        // Redirect based on user role
-        const dashboardPath = response.user.role === 'supervisor' 
-          ? '/supervisor-dashboard' 
-          : '/user-dashboard';
-        
-        console.log('Redirecting to:', dashboardPath); // Debug log
-        navigate(dashboardPath, { replace: true });
-      } else {
-        setErrors({ submit: "Login failed. Please try again." });
-      }
-    } catch (err) {
-      console.error('Login error:', err); // Debug log
-      setErrors({ submit: err.response?.data?.message || "Invalid email or password" });
+      console.log("Login successful:", response);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Login error:", error);
+      setErrors({
+        submit: error.response?.data?.message || "An error occurred during login",
+      });
     } finally {
       setLoading(false);
     }

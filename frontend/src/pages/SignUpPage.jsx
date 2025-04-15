@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
+import { isValidEmail, isValidPassword, validationMessages } from '../utils/validation';
 
 const SignUpPage = () => {
   const navigate = useNavigate();
@@ -11,35 +12,64 @@ const SignUpPage = () => {
     confirmPassword: '',
     role: 'user'
   });
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Full name validation
+    if (!formData.fullName) {
+      newErrors.fullName = 'Full name is required';
+    } else if (formData.fullName.length < 2) {
+      newErrors.fullName = 'Full name must be at least 2 characters long';
+    }
+
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = validationMessages.email.required;
+    } else if (!isValidEmail(formData.email)) {
+      newErrors.email = validationMessages.email.invalid;
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = validationMessages.password.required;
+    } else if (!isValidPassword(formData.password)) {
+      newErrors.password = validationMessages.password.invalid;
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError('');
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
     setLoading(true);
 
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Validate form data
-      if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
-        throw new Error('All fields are required');
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        throw new Error('Passwords do not match');
-      }
-
-      if (formData.password.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
-      }
-
-      // Use the appropriate signup method based on user type
       const response = formData.role === 'supervisor' 
         ? await authService.supervisorSignup({
             fullName: formData.fullName,
@@ -56,7 +86,9 @@ const SignUpPage = () => {
       navigate('/login');
     } catch (error) {
       console.error('Signup error:', error);
-      setError(error.response?.data?.message || error.message || 'An error occurred during signup');
+      setErrors({
+        submit: error.response?.data?.message || error.message || 'An error occurred during signup'
+      });
     } finally {
       setLoading(false);
     }
@@ -76,9 +108,9 @@ const SignUpPage = () => {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
+          {errors.submit && (
             <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
+              <div className="text-sm text-red-700">{errors.submit}</div>
             </div>
           )}
 
